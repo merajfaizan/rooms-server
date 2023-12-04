@@ -2,7 +2,7 @@ const express = require("express");
 const cors = require("cors");
 require("dotenv").config();
 const { MongoClient, ServerApiVersion } = require("mongodb");
-const jwt = require('jsonwebtoken');
+const jwt = require("jsonwebtoken");
 const app = express();
 const port = process.env.PORT || 5000;
 
@@ -69,6 +69,30 @@ async function run() {
       } catch (error) {
         console.error(error);
         res.status(500).json({ message: "Internal server error" });
+      }
+    });
+
+    // get all rooms with filters
+    app.get('/rooms', async (req, res) => {
+      try { 
+        // Fetching query parameters for filtering
+        const minPrice = parseFloat(req.query.minPrice) || 0;
+        const maxPrice = parseFloat(req.query.maxPrice) || 1000;
+    
+        // Construct the filter based on the provided price range
+        const priceFilter = {
+          $gte: minPrice,
+          $lte: maxPrice,
+        };
+    
+        // Apply the filter
+        const query = { pricePerNight: priceFilter };
+        const rooms = await roomCollection.find(query).toArray();
+    
+        res.json(rooms);
+      } catch (error) {
+        console.error('Error fetching rooms:', error);
+        res.status(500).json({ error: 'Internal Server Error' });
       }
     });
   } finally {
