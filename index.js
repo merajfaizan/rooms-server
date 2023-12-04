@@ -95,6 +95,17 @@ async function run() {
         res.status(500).json({ error: "Internal Server Error" });
       }
     });
+    // get featured rooms only 3
+    app.get("/featured", async (req, res) => {
+      try {
+        const rooms = await roomCollection.find({}).limit(3).toArray();
+
+        res.json(rooms);
+      } catch (error) {
+        console.error("Error fetching rooms:", error);
+        res.status(500).json({ error: "Internal Server Error" });
+      }
+    });
 
     // Endpoint to get room details by ID
     app.get("/rooms/:roomId", async (req, res) => {
@@ -235,7 +246,7 @@ async function run() {
         if (bookingIndex === -1) {
           return res.status(404).json({ message: "Booking not found" });
         }
-        console.log(bookingIndex)
+        console.log(bookingIndex);
 
         // Check if the user can cancel the booking (before 1 day from the booking day)
         const bookingDate = new Date(user.myBookings[bookingIndex].bookingDate);
@@ -243,13 +254,16 @@ async function run() {
         const oneDayInMillis = 24 * 60 * 60 * 1000; // 1 day in milliseconds
 
         if (bookingDate - currentDate < oneDayInMillis) {
-          console.log(bookingDate, currentDate, oneDayInMillis, bookingDate - currentDate < oneDayInMillis )
-          return res
-            .status(400)
-            .json({
-              message:
-                "Booking cannot be canceled. It's less than 1 day from the booking day.",
-            });
+          console.log(
+            bookingDate,
+            currentDate,
+            oneDayInMillis,
+            bookingDate - currentDate < oneDayInMillis
+          );
+          return res.status(400).json({
+            message:
+              "Booking cannot be canceled. It's less than 1 day from the booking day.",
+          });
         }
 
         // Remove the booking from the user's bookings
