@@ -97,11 +97,13 @@ async function run() {
     });
 
     // Endpoint to get room details by ID
-    app.get("/rooms/:roomId", async (req, res) => {
+    app.get("/rooms/:roomId", verifyToken, async (req, res) => {
       try {
         const roomId = req.params.roomId;
 
-        const room = await roomCollection.findOne({ _id: new ObjectId(roomId) });
+        const room = await roomCollection.findOne({
+          _id: new ObjectId(roomId),
+        });
 
         if (!room) {
           return res.status(404).json({ message: "Room not found" });
@@ -114,8 +116,24 @@ async function run() {
       }
     });
 
-    
+    // Endpoint to check room availability
+    app.post("/checkAvailability", verifyToken, async (req, res) => {
+      try {
+        const { roomId, bookingDate } = req.body;
 
+        const room = await roomCollection.findOne({
+          _id: new ObjectId(roomId),
+          bookedDates: bookingDate,
+        });
+
+        const isAvailable = !room;
+
+        res.json({ available: isAvailable });
+      } catch (error) {
+        console.error("Error checking room availability:", error);
+        res.status(500).json({ error: "Internal Server Error" });
+      }
+    });
   } finally {
     // await client.close();
   }
