@@ -97,7 +97,7 @@ async function run() {
     });
 
     // Endpoint to get room details by ID
-    app.get("/rooms/:roomId", verifyToken, async (req, res) => {
+    app.get("/rooms/:roomId", async (req, res) => {
       try {
         const roomId = req.params.roomId;
 
@@ -117,7 +117,7 @@ async function run() {
     });
 
     // Endpoint to check room availability
-    app.post("/checkAvailability", verifyToken, async (req, res) => {
+    app.post("/checkAvailability", async (req, res) => {
       try {
         const { roomId, bookingDate } = req.body;
 
@@ -234,6 +234,22 @@ async function run() {
 
         if (bookingIndex === -1) {
           return res.status(404).json({ message: "Booking not found" });
+        }
+        console.log(bookingIndex)
+
+        // Check if the user can cancel the booking (before 1 day from the booking day)
+        const bookingDate = new Date(user.myBookings[bookingIndex].bookingDate);
+        const currentDate = new Date();
+        const oneDayInMillis = 24 * 60 * 60 * 1000; // 1 day in milliseconds
+
+        if (bookingDate - currentDate < oneDayInMillis) {
+          console.log(bookingDate, currentDate, oneDayInMillis, bookingDate - currentDate < oneDayInMillis )
+          return res
+            .status(400)
+            .json({
+              message:
+                "Booking cannot be canceled. It's less than 1 day from the booking day.",
+            });
         }
 
         // Remove the booking from the user's bookings
