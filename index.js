@@ -134,6 +134,66 @@ async function run() {
         res.status(500).json({ error: "Internal Server Error" });
       }
     });
+
+    // Endpoint to book a room
+    app.post("/bookRoom", verifyToken, async (req, res) => {
+      try {
+        const { roomId, bookingDate } = req.body;
+        const userEmail = req.decoded.email;
+
+        // Find the user by email
+        const user = await userCollection.findOne({ email: userEmail });
+        if (!user) {
+          return res.status(404).json({ message: "User not found" });
+        }
+
+        // Check if the room is available on the selected date
+        const room = await roomCollection.findOne({
+          _id: new ObjectId(roomId),
+        });
+        if (!room) {
+          return res.status(404).json({ message: "Room not found" });
+        }
+
+        const selectedDateISO = new Date(bookingDate)
+          .toISOString()
+          .split("T")[0];
+        if (room.bookedDates.includes(selectedDateISO)) {
+          return res
+            .status(400)
+            .json({ message: "Room not available on the selected date" });
+        }
+
+        // Update the room data to mark it as booked on the selected date
+        await roomCollection.updateOne(
+          { _id: new ObjectId(roomId) },
+          { $push: { bookedDates: selectedDateISO } }
+        );
+
+        // Update the user's bookings
+        await userCollection.updateOne(
+          { email: userEmail },
+          {
+            $push: {
+              myBookings: {
+                roomId,
+                bookingDate: selectedDateISO,
+                roomDetails: {
+                  title: room.title,
+                  pricePerNight: room.pricePerNight,
+                  roomSize: room.roomSize,
+                },
+              },
+            },
+          }
+        );
+
+        res.status(200).json({ message: "Room booked successfully" });
+      } catch (error) {
+        console.error("Error booking room:", error);
+        res.status(500).json({ error: "Internal Server Error" });
+      }
+    });
   } finally {
     // await client.close();
   }
