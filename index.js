@@ -194,6 +194,87 @@ async function run() {
         res.status(500).json({ error: "Internal Server Error" });
       }
     });
+
+    // Endpoint to get user's booked data
+    app.get("/my-bookings", verifyToken, async (req, res) => {
+      try {
+        const userEmail = req.decoded.email;
+
+        // Fetch user's booked data from the database
+        const user = await userCollection.findOne({ email: userEmail });
+
+        if (!user || !user.myBookings) {
+          return res.status(200).json([]);
+        }
+
+        res.status(200).json(user.myBookings);
+      } catch (error) {
+        console.error("Error fetching user's bookings:", error);
+        res.status(500).json({ error: "Internal Server Error" });
+      }
+    });
+
+    // Endpoint to cancel a booking
+    app.delete("/cancel-booking/:bookingId", verifyToken, async (req, res) => {
+      try {
+        const email = req.decoded.email; // Assuming the decoded email is the user identifier
+        const roomId = req.params.bookingId;
+
+        // Find the user in the database
+        const user = await userCollection.findOne({ email: email });
+
+        if (!user) {
+          return res.status(404).json({ message: "User not found" });
+        }
+
+        // Find the booking in the user's bookings
+        const bookingIndex = user.myBookings.findIndex(
+          (booking) => booking.roomId === roomId
+        );
+
+        if (bookingIndex === -1) {
+          return res.status(404).json({ message: "Booking not found" });
+        }
+
+        // Remove the booking from the user's bookings
+        const canceledBooking = user.myBookings.splice(bookingIndex, 1)[0];
+
+        // Update the user document in the database
+        await userCollection.updateOne(
+          { email: email },
+          { $set: { myBookings: user.myBookings } }
+        );
+
+        // Find the room in the database
+        const room = await roomCollection.findOne({
+          _id: new ObjectId(canceledBooking.roomId),
+        });
+        console.log(room.bookedDates);
+
+        if (!room) {
+          return res.status(404).json({ message: "Room not found" });
+        }
+
+        // Remove the booked dates from the room's bookedDates
+        room.bookedDates = room.bookedDates.filter(
+          (date) => date !== canceledBooking.bookingDate
+        );
+
+        console.log(room.bookedDates);
+        // Update the room document in the database
+        await roomCollection.updateOne(
+          { _id: new ObjectId(canceledBooking.roomId) },
+          { $set: { bookedDates: room.bookedDates } }
+        );
+
+        res
+          .status(200)
+          .json({ message: "Booking canceled successfully", canceledBooking });
+      } catch (error) {
+        console.error("Error canceling booking:", error);
+        res.status(500).json({ error: "Internal Server Error" });
+      }
+    });
   } finally {
     // await client.close();
   }
